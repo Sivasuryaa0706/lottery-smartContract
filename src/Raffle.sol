@@ -70,9 +70,27 @@ contract Raffle is VRFConsumerBaseV2Plus {
         emit RaffleEntered(msg.sender);
     }
 
-    function pickWinner() external {
-        //Check if Enough time is passed
-        if ((block.timestamp - s_lastTimeStamp) < i_interval) {
+    /* Automation */
+    /* Function to check whether updateUpKeep needs to be called to pick a winner
+     * 1. Check if Enough time is passed
+     * 2. Lottery is open
+     * 3. The contract has ETH(has players)
+     */
+    function checkUpKeep(
+        bytes memory /* checkData */
+    ) public view returns (bool upkeepNeeded, bytes memory /* performData */) {
+        bool timeHasPassed = ((block.timestamp - s_lastTimeStamp) >=
+            i_interval);
+        bool isOpen = s_raffleState == RaffleState.OPEN;
+        bool hasBalance = address(this).balance > 0;
+        bool hasPlayers = s_players.length > 0;
+        upkeepNeeded = (timeHasPassed && isOpen && hasBalance && hasPlayers);
+        return (upkeepNeeded, "");
+    }
+
+    function performUpKeep(bytes calldata /* performData */) external {
+        (bool upKeepNeeded, ) = checkUpKeep("");
+        if (!upKeepNeeded) {
             revert();
         }
         s_raffleState = RaffleState.CALCULATING;
